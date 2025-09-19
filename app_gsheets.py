@@ -23,87 +23,6 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-# DEBUG SWITCH
-DEBUG = True
-def dbg(msg):
-    import streamlit as st
-    if DEBUG: st.write("🔎 DEBUG:", msg)
-
-import streamlit as st
-
-st.markdown("### 🧪 Google Sheets Connectivity Check")
-
-def diag():
-    try:
-        cfg = st.secrets["gsheets"]
-        st.write("✅ secrets[\"gsheets\"] loaded. Keys:", list(cfg.keys()))
-    except Exception as e:
-        st.error(f"❌ Secrets not found / wrong shape: {e}")
-        st.stop()
-
-    # service_account can be a dict (TOML table) or JSON string
-    sa = cfg.get("service_account")
-    if sa is None:
-        st.error("❌ gsheets.service_account missing in secrets")
-        st.stop()
-    if isinstance(sa, str):
-        import json
-        try:
-            sa_info = json.loads(sa)
-            st.write("ℹ️ service_account is JSON string → parsed OK")
-        except Exception as e:
-            st.error(f"❌ service_account JSON malformed: {e}")
-            st.stop()
-    else:
-        sa_info = sa
-        st.write("ℹ️ service_account is TOML table (dict) → OK")
-
-    sid = cfg.get("spreadsheet_id")
-    if not sid or "/" in sid:
-        st.error("❌ spreadsheet_id missing or looks like a URL. Use ONLY the ID between /d/ and /edit in the Sheet URL.")
-        st.stop()
-    st.write("✅ spreadsheet_id present:", sid[:6] + "…")
-
-    # Try credentials
-    try:
-        from google.oauth2.service_account import Credentials
-        scopes = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive",
-        ]
-        creds = Credentials.from_service_account_info(sa_info, scopes=scopes)
-        st.write("✅ Credentials built")
-    except Exception as e:
-        st.error(f"❌ Could not build Credentials: {e}")
-        st.stop()
-
-    # Try gspread
-    try:
-        import gspread
-        gc = gspread.authorize(creds)
-        st.write("✅ gspread authorized")
-    except Exception as e:
-        st.error(f"❌ gspread authorize failed: {e}")
-        st.stop()
-
-    # Try opening the sheet
-    try:
-        sh = gc.open_by_key(sid)
-        tabs = [ws.title for ws in sh.worksheets()]
-        st.write("✅ Opened spreadsheet. Tabs:", tabs)
-        required = {"Brands","Formulations","Ingredients","Formulation_Ingredients"}
-        missing = sorted(list(required - set(tabs)))
-        if missing:
-            st.warning(f"⚠️ Missing required tabs: {missing}")
-        else:
-            st.write("✅ All required tabs exist")
-    except Exception as e:
-        st.error(f"❌ open_by_key failed: {e}\n(Usually wrong Sheet ID, or the Service Account email has not been shared as Editor, or APIs not enabled.)")
-        st.stop()
-
-if st.button("Run Google Sheets Diagnostics"):
-    diag()
-
 
 # ------------------------------
 # Constants & Templates
@@ -456,6 +375,66 @@ with st.form("add_formulation"):
             st.info("Refresh the app (Rerun) to see it reflected in tables above.")
         except Exception as e:
             st.error(f"Failed to save: {e}")
+
+# ------------------------------
+# Bulk Add Ingredients from INCI list
+# ------------------------------
+st.markdown("---")
+st.header("Bulk Add Ingredients — INCI List → Google Sheets")
+st.caption("Paste a comma-separated or newline-separated list of INCI names. We'll add them to the *Ingredients* tab with auto IDs. Other columns (common_name, function, cas) can be filled later.")
+with st.form("bulk_ing_add"):
+    inci_raw = st.text_area("INCI list (comma or newline separated)", height=140, placeholder="Aqua, Dimethicone, Cyclopentasiloxane, ...
+Titanium Dioxide
+Glycerin")
+    dedup = st.checkbox("De-duplicate before adding", value=True)
+    default_function = st.text_input("Default Function (optional)", value="")
+    default_common = st.text_input("Default Common Name (optional)", value="")
+    submitted_bulk = st.form_submit_button("➕ Add to Ingredients")
+
+if submitted_bulk:
+    try:
+        # Split by comma/newline, strip whitespace
+        tokens = []
+        for line in inci_raw.replace("
+", "
+").split("
+"):
+            for part in line.split(","):
+                name = part.strip()
+                if name:
+                    tokens.append(name)
+        if not tokens:
+            st.warning("No INCI names detected.")
+        else:
+            if dedup:
+                tokens = list(dict.fromkeys(tokens))  # order-preserving dedup
+            # Build a set of existing INCI (case-insensitive) to avoid duplicates
+            existing = set()
+            if not df_ings.empty and "inci_name" in df_ings.columns:
+                existing = set(df_ings["inci_name"].dropna().str.lower().tolist())
+
+            next_ing_id = 1 if df_ings.empty else int(pd.to_numeric(df_ings["id"], errors='coerce').max()) + 1
+            added = 0
+            for inci in tokens:
+                if inci.lower() in existing:
+                    continue  # skip existing
+                df_append(ws_ings, {
+                    "id": next_ing_id,
+                    "inci_name": inci,
+                    "common_name": default_common,
+                    "function": default_function,
+                    "cas": ""
+                })
+                # reflect locally so we don't add twice in one run
+                df_ings.loc[len(df_ings)] = {"id": next_ing_id, "inci_name": inci, "common_name": default_common, "function": default_function, "cas": ""}
+                existing.add(inci.lower())
+                next_ing_id += 1
+                added += 1
+            st.success(f"Added {added} ingredient(s) to Google Sheets.")
+            if added == 0:
+                st.info("Nothing new to add — everything already existed or input was empty.")
+    except Exception as e:
+        st.error(f"Failed to add ingredients: {e}")
 
 # ------------------------------
 # Footer notes
