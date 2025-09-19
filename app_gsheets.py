@@ -399,7 +399,11 @@ if submitted_bulk:
     try:
         # Split by comma/newline, strip whitespace
         tokens = []
-        for line in inci_raw.replace("
+for line in inci_raw.replace("\r", "\n").split("\n"):
+    for part in line.split(","):
+        name = part.strip()
+        if name:
+            tokens.append(name)
 ", "
 ").split("
 "):
