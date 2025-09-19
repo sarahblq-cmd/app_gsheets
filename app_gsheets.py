@@ -447,12 +447,79 @@ for line in inci_raw.replace("\r", "\n").split("\n"):
 # ------------------------------
 # Footer notes
 # ------------------------------
-st.markdown(
-    "> **Notes**\n"
-    "> - Maintain unique integer IDs in each tab. This app auto-increments when writing.\n"
-    "> - You can edit data directly in Google Sheets; the app will read changes on refresh.\n"
-    "> - Add more product rules by extending RULES_BY_PRODUCT.\n"
+# ------------------------------
+# Bulk Add Ingredients from INCI list
+# ------------------------------
+st.markdown("---")
+st.header("Bulk Add Ingredients — INCI List → Google Sheets")
+st.caption(
+    "Paste a comma-separated or newline-separated list of INCI names. "
+    "We'll add them to the *Ingredients* tab with auto IDs. "
+    "Other columns (common_name, function, cas) can be filled later."
 )
+
+with st.form("bulk_ing_add"):
+    inci_raw = st.text_area(
+        "INCI list (comma or newline separated)",
+        height=140,
+        placeholder="Aqua, Dimethicone, Cyclopentasiloxane, Titanium Dioxide, Glycerin"
+    )
+    dedup = st.checkbox("De-duplicate before adding", value=True)
+    default_function = st.text_input("Default Function (optional)", value="")
+    default_common = st.text_input("Default Common Name (optional)", value="")
+    submitted_bulk = st.form_submit_button("➕ Add to Ingredients")
+
+if submitted_bulk:
+    try:
+        # Split by comma and/or newline, strip whitespace
+        tokens = []
+        for line in inci_raw.replace("\r", "\n").split("\n"):
+            for part in line.split(","):
+                name = part.strip()
+                if name:
+                    tokens.append(name)
+
+        if not tokens:
+            st.warning("No INCI names detected.")
+        else:
+            if dedup:
+                tokens = list(dict.fromkeys(tokens))  # order-preserving dedup
+
+            # Build a set of existing INCI (case-insensitive) to avoid duplicates
+            existing = set()
+            if not df_ings.empty and "inci_name" in df_ings.columns:
+                existing = set(df_ings["inci_name"].dropna().str.lower().tolist())
+
+            next_ing_id = 1 if df_ings.empty else int(pd.to_numeric(df_ings["id"], errors='coerce').max()) + 1
+            added = 0
+            for inci in tokens:
+                if inci.lower() in existing:
+                    continue  # skip existing
+                df_append(ws_ings, {
+                    "id": next_ing_id,
+                    "inci_name": inci,
+                    "common_name": default_common,
+                    "function": default_function,
+                    "cas": ""
+                })
+                # Update local df_ings
+                df_ings.loc[len(df_ings)] = {
+                    "id": next_ing_id,
+                    "inci_name": inci,
+                    "common_name": default_common,
+                    "function": default_function,
+                    "cas": ""
+                }
+                existing.add(inci.lower())
+                next_ing_id += 1
+                added += 1
+
+            st.success(f"Added {added} ingredient(s) to Google Sheets.")
+            if added == 0:
+                st.info("Nothing new to add — everything already existed or input was empty.")
+    except Exception as e:
+        st.error(f"Failed to add ingredients: {e}")
+
 
 # ------------------------------
 # END
