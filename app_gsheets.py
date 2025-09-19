@@ -526,13 +526,3 @@ if submitted_bulk:
 # ------------------------------
 # Footer Notes
 # ------------------------------
-st.markdown(
-    "> **Notes**
-"
-    "> - Maintain unique integer IDs in each tab. This app auto-increments when writing.
-"
-    "> - You can edit data directly in Google Sheets; the app will read changes on refresh.
-"
-    "> - Add more product rules by extending RULES_BY_PRODUCT (e.g., Shampoo, Body Lotion, Sunscreen).
-"
-)
