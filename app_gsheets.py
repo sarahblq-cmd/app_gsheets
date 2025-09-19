@@ -452,10 +452,7 @@ with st.form("bulk_ing_add"):
 if submitted_bulk:
     try:
         tokens = []
-        for line in inci_raw.replace("
-", "
-").split("
-"):
+       for line in inci_raw.replace("\r", "\n").split("\n"): 
             for part in line.split(","):
                 name = part.strip()
                 if name:
