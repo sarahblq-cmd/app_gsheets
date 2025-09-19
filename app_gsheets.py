@@ -23,6 +23,11 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+# DEBUG SWITCH
+DEBUG = True
+def dbg(msg):
+    import streamlit as st
+    if DEBUG: st.write("🔎 DEBUG:", msg)
 
 # ------------------------------
 # Constants & Templates
