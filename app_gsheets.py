@@ -352,13 +352,13 @@ with st.form("add_formulation"):
     with colC:
         st.caption("Enter ingredient rows as text: INCI | Common | Function | % | Phase | Notes (one per line)")
         ing_text = st.text_area("Ingredients (one per line)",
-            value=("Aqua | Water | Solvent | 60 | A
+            value=("""Aqua | Water | Solvent | 60 | A
 "
                    "Sodium Laureth Sulfate | SLES | Surfactant | 10 | A
 "
                    "Cocamidopropyl Betaine | CAPB | Surfactant | 5 | A
 "
-                   "Glycerin | Glycerin | Humectant | 3 | A"), height=160)
+                   "Glycerin | Glycerin | Humectant | 3 | A"""), height=160)
 
     submitted = st.form_submit_button("➕ Save to Google Sheets")
 
