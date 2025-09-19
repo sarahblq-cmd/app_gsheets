@@ -29,6 +29,82 @@ def dbg(msg):
     import streamlit as st
     if DEBUG: st.write("🔎 DEBUG:", msg)
 
+import streamlit as st
+
+st.markdown("### 🧪 Google Sheets Connectivity Check")
+
+def diag():
+    try:
+        cfg = st.secrets["gsheets"]
+        st.write("✅ secrets[\"gsheets\"] loaded. Keys:", list(cfg.keys()))
+    except Exception as e:
+        st.error(f"❌ Secrets not found / wrong shape: {e}")
+        st.stop()
+
+    # service_account can be a dict (TOML table) or JSON string
+    sa = cfg.get("service_account")
+    if sa is None:
+        st.error("❌ gsheets.service_account missing in secrets")
+        st.stop()
+    if isinstance(sa, str):
+        import json
+        try:
+            sa_info = json.loads(sa)
+            st.write("ℹ️ service_account is JSON string → parsed OK")
+        except Exception as e:
+            st.error(f"❌ service_account JSON malformed: {e}")
+            st.stop()
+    else:
+        sa_info = sa
+        st.write("ℹ️ service_account is TOML table (dict) → OK")
+
+    sid = cfg.get("spreadsheet_id")
+    if not sid or "/" in sid:
+        st.error("❌ spreadsheet_id missing or looks like a URL. Use ONLY the ID between /d/ and /edit in the Sheet URL.")
+        st.stop()
+    st.write("✅ spreadsheet_id present:", sid[:6] + "…")
+
+    # Try credentials
+    try:
+        from google.oauth2.service_account import Credentials
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        creds = Credentials.from_service_account_info(sa_info, scopes=scopes)
+        st.write("✅ Credentials built")
+    except Exception as e:
+        st.error(f"❌ Could not build Credentials: {e}")
+        st.stop()
+
+    # Try gspread
+    try:
+        import gspread
+        gc = gspread.authorize(creds)
+        st.write("✅ gspread authorized")
+    except Exception as e:
+        st.error(f"❌ gspread authorize failed: {e}")
+        st.stop()
+
+    # Try opening the sheet
+    try:
+        sh = gc.open_by_key(sid)
+        tabs = [ws.title for ws in sh.worksheets()]
+        st.write("✅ Opened spreadsheet. Tabs:", tabs)
+        required = {"Brands","Formulations","Ingredients","Formulation_Ingredients"}
+        missing = sorted(list(required - set(tabs)))
+        if missing:
+            st.warning(f"⚠️ Missing required tabs: {missing}")
+        else:
+            st.write("✅ All required tabs exist")
+    except Exception as e:
+        st.error(f"❌ open_by_key failed: {e}\n(Usually wrong Sheet ID, or the Service Account email has not been shared as Editor, or APIs not enabled.)")
+        st.stop()
+
+if st.button("Run Google Sheets Diagnostics"):
+    diag()
+
+
 # ------------------------------
 # Constants & Templates
 # ------------------------------
