@@ -386,9 +386,7 @@ with st.form("bulk_ing_add"):
     inci_raw = st.text_area(
     "INCI list (comma or newline separated)",
     height=140,
-    placeholder="""Aqua, Dimethicone, Cyclopentasiloxane, ...
-Titanium Dioxide
-Glycerin"""
+    placeholder="Aqua, Dimethicone, Cyclopentasiloxane, Titanium Dioxide, Glycerin"
 )
     dedup = st.checkbox("De-duplicate before adding", value=True)
     default_function = st.text_input("Default Function (optional)", value="")
