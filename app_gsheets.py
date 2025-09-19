@@ -383,9 +383,13 @@ st.markdown("---")
 st.header("Bulk Add Ingredients — INCI List → Google Sheets")
 st.caption("Paste a comma-separated or newline-separated list of INCI names. We'll add them to the *Ingredients* tab with auto IDs. Other columns (common_name, function, cas) can be filled later.")
 with st.form("bulk_ing_add"):
-    inci_raw = st.text_area("INCI list (comma or newline separated)", height=140, placeholder="Aqua, Dimethicone, Cyclopentasiloxane, ...
+    inci_raw = st.text_area(
+    "INCI list (comma or newline separated)",
+    height=140,
+    placeholder="""Aqua, Dimethicone, Cyclopentasiloxane, ...
 Titanium Dioxide
-Glycerin")
+Glycerin"""
+)
     dedup = st.checkbox("De-duplicate before adding", value=True)
     default_function = st.text_input("Default Function (optional)", value="")
     default_common = st.text_input("Default Common Name (optional)", value="")
