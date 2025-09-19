@@ -396,15 +396,13 @@ with st.form("bulk_ing_add"):
 if submitted_bulk:
     try:
         # Split by comma/newline, strip whitespace
-        tokens = []
+      tokens = []
 for line in inci_raw.replace("\r", "\n").split("\n"):
     for part in line.split(","):
         name = part.strip()
         if name:
             tokens.append(name)
-", "
-").split("
-"):
+
             for part in line.split(","):
                 name = part.strip()
                 if name:
